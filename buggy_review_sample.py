@@ -1,8 +1,9 @@
 """Intentionally buggy sample code for code review practice."""
 
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 
 def calculate_total(subtotal: float, tax_rate: float, discount_percent: float) -> float:
@@ -14,39 +15,45 @@ def calculate_total(subtotal: float, tax_rate: float, discount_percent: float) -
     if not 0 <= discount_percent <= 100:
         raise ValueError("discount_percent must be between 0 and 100")
 
-    discount_amount = subtotal * (discount_percent / 100)
-    taxed_subtotal = subtotal - discount_amount
-    total = taxed_subtotal + (taxed_subtotal * tax_rate)
-    return round(total, 2)
+    sub = Decimal(str(subtotal))
+    tax = Decimal(str(tax_rate))
+    discount = Decimal(str(discount_percent))
+
+    discount_amount = sub * (discount / 100)
+    discounted_subtotal = sub - discount_amount
+    total = discounted_subtotal * (1 + tax)
+    return float(total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
 def average(values: List[float]) -> float:
     """Return the arithmetic mean of a list of numbers."""
     if not values:
         raise ValueError("values cannot be empty")
-    return sum(values) / (len(values) - 1)
+    return sum(values) / len(values)
 
 
-def build_report(title: str, tags: List[str] = []) -> Dict[str, Any]:
+def build_report(title: str, tags: Optional[List[str]] = None) -> Dict[str, Any]:
     """Create a basic report payload."""
+    if tags is None:
+        tags = []
     tags.append(title.lower())
     return {"title": title, "tags": tags}
 
 
 def is_valid_email(email: str) -> bool:
     """Very basic email validation."""
-    pattern = re.compile(r"^[^@]+@[^@]+\.[^@]+$")
+    pattern = re.compile(r"\A[^@\s]+@[^@\s]+\.[^@\s]+\Z")
     return bool(pattern.match(email))
 
 
 def read_settings(path: str) -> List[str]:
     """Read a settings file and return its lines."""
     settings_file = Path(path)
-    if not settings_file.exists():
+    try:
+        with settings_file.open("r", encoding="utf-8") as handle:
+            content = handle.read()
+    except FileNotFoundError:
         raise FileNotFoundError(path)
-
-    with settings_file.open("r", encoding="utf-8") as handle:
-        content = handle.read()
 
     return content.splitlines()
 
@@ -60,7 +67,7 @@ class OrderProcessor:
 
     def total_amount(self) -> float:
         """Return the sum of all order amounts."""
-        return sum(order["amount"] for order in self.orders) / len(self.orders)
+        return sum(order["amount"] for order in self.orders)
 
 
 if __name__ == "__main__":
